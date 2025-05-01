@@ -1,28 +1,36 @@
 import express from 'express';
-import httpproxy from 'http-proxy';
+import { createProxyServer } from 'http-proxy';
 import { URL } from 'url';
-
-const createProxyServer = httpproxy.createProxyServer;
 
 const app = express();
 const proxy = createProxyServer({ changeOrigin: true });
 
+const addCorsHeaders = (res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+};
+
+// Handle preflight CORS requests
+app.options('/proxy', (req, res) => {
+  addCorsHeaders(res);
+  res.sendStatus(204);
+});
+
 app.use('/proxy', (req, res) => {
   const targetUrl = req.query.url;
-
   if (!targetUrl) {
-    return res.status(400).json({ error: 'Missing "url" query param' });
+    return res.status(400).json({ error: 'Missing "url" query parameter' });
   }
 
   try {
-    // Validate URL
+    // Just parsing to ensure it's a valid URL
     new URL(targetUrl);
   } catch {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 
-  // Strip the '/proxy?url=' part from the original request
-  // so path, query, headers, and body are passed through cleanly
+  // Rewrite req.url so the proxy doesn't append `/proxy`
   req.url = targetUrl;
 
   proxy.web(req, res, {
@@ -30,23 +38,12 @@ app.use('/proxy', (req, res) => {
     changeOrigin: true,
     ignorePath: true,
     selfHandleResponse: false,
-    secure: false, // allow self-signed HTTPS in dev
   });
 });
 
-// Inject permissive CORS headers on all responses
+// Add CORS headers after proxy response
 proxy.on('proxyRes', (proxyRes, req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-});
-
-// Optional: handle preflight requests
-app.options('/proxy', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.status(204).end();
+  addCorsHeaders(res);
 });
 
 const PORT = process.env.PORT || 3420;
