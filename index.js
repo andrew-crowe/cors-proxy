@@ -52,3 +52,8 @@ proxy.on('proxyRes', (proxyRes, req, res) => {
 
   proxyRes.pipe(res);
 });
+
+const PORT = process.env.PORT || 3420;
+app.listen(PORT, () => {
+  console.log(`Universal CORS proxy running on http://localhost:${PORT}`);
+});
