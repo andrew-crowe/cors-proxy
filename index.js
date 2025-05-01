@@ -5,7 +5,7 @@ import { URL } from 'url';
 const createProxyServer = httpproxy.createProxyServer;
 
 const app = express();
-const proxy = createProxyServer({ changeOrigin: true });
+const proxy = createProxyServer({ changeOrigin: true, selfHandleResponse: true });
 
 const addCorsHeaders = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,42 +13,42 @@ const addCorsHeaders = (res) => {
   res.setHeader('Access-Control-Allow-Headers', '*');
 };
 
-// Handle preflight CORS requests
+// Preflight support
 app.options('/proxy', (req, res) => {
   addCorsHeaders(res);
-  res.sendStatus(204);
+  res.status(204).end();
 });
 
 app.use('/proxy', (req, res) => {
   const targetUrl = req.query.url;
-  if (!targetUrl) {
-    return res.status(400).json({ error: 'Missing "url" query parameter' });
-  }
+  if (!targetUrl) return res.status(400).json({ error: 'Missing url param' });
 
   try {
-    // Just parsing to ensure it's a valid URL
     new URL(targetUrl);
   } catch {
-    return res.status(400).json({ error: 'Invalid URL' });
+    return res.status(400).json({ error: 'Invalid url param' });
   }
 
-  // Rewrite req.url so the proxy doesn't append `/proxy`
   req.url = targetUrl;
 
   proxy.web(req, res, {
     target: targetUrl,
-    changeOrigin: true,
     ignorePath: true,
-    selfHandleResponse: false,
   });
 });
 
-// Add CORS headers after proxy response
+// Manually stream the response and inject headers
 proxy.on('proxyRes', (proxyRes, req, res) => {
   addCorsHeaders(res);
-});
 
-const PORT = process.env.PORT || 3420;
-app.listen(PORT, () => {
-  console.log(`Universal CORS proxy running on http://localhost:${PORT}`);
+  res.statusCode = proxyRes.statusCode;
+  res.statusMessage = proxyRes.statusMessage;
+
+  for (const [key, value] of Object.entries(proxyRes.headers)) {
+    if (!/^access-control-/i.test(key)) {
+      res.setHeader(key, value);
+    }
+  }
+
+  proxyRes.pipe(res);
 });
