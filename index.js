@@ -1,6 +1,8 @@
 import express from 'express';
-import { createProxyServer } from 'http-proxy';
+import httpproxy from 'http-proxy';
 import { URL } from 'url';
+
+const createProxyServer = httpproxy.createProxyServer;
 
 const app = express();
 const proxy = createProxyServer({ changeOrigin: true });

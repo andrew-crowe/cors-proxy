@@ -40,3 +40,9 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/cors-proxy:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Deploy the app
+        uses: digitalocean/app_action/deploy@v2
+        env:
+          SAMPLE_DIGEST: ${{ steps.push.outputs.digest }}
+        with:
+          token: ${{ secrets.YOUR_DIGITALOCEAN_ACCESS_TOKEN_VARIABLE_NAME }}
