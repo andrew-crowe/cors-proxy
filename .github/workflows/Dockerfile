@@ -11,7 +11,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Expose port used by the proxy
-EXPOSE 3000
+EXPOSE 3420
 
 # Run the proxy server
 CMD ["pnpm", "start"]
