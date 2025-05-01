@@ -5,55 +5,66 @@ import { URL } from 'url';
 const createProxyServer = httpproxy.createProxyServer;
 
 const app = express();
-const proxy = createProxyServer({ changeOrigin: true, selfHandleResponse: true });
+const proxy = createProxyServer({
+  changeOrigin: true,
+  ignorePath: true,
+  selfHandleResponse: true, // <== take full control of response
+  secure: false,
+  preserveHeaderKeyCase: true,
+});
 
-const addCorsHeaders = (res) => {
+const PORT = process.env.PORT || 3420;
+
+const setCORSHeaders = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
 };
 
-// Preflight support
+// Preflight handler
 app.options('/proxy', (req, res) => {
-  addCorsHeaders(res);
-  res.status(204).end();
+  setCORSHeaders(res);
+  res.sendStatus(204);
 });
 
 app.use('/proxy', (req, res) => {
-  const targetUrl = req.query.url;
-  if (!targetUrl) return res.status(400).json({ error: 'Missing url param' });
+  const { url: baseUrl, ...extraParams } = req.query;
 
-  try {
-    new URL(targetUrl);
-  } catch {
-    return res.status(400).json({ error: 'Invalid url param' });
+  if (!baseUrl) return res.status(400).json({ error: 'Missing url param' });
+
+  // Manually reattach extra query params
+  const url = new URL(baseUrl);
+  for (const [key, value] of Object.entries(extraParams)) {
+    url.searchParams.append(key, value);
   }
 
-  req.url = targetUrl;
+  req.url = url.toString();
 
   proxy.web(req, res, {
-    target: targetUrl,
-    ignorePath: true,
+    target: req.url,
+    headers: { ...req.headers, host: undefined },
   });
 });
 
-// Manually stream the response and inject headers
+// Full manual response handling with CORS injection
 proxy.on('proxyRes', (proxyRes, req, res) => {
-  addCorsHeaders(res);
-
-  res.statusCode = proxyRes.statusCode;
-  res.statusMessage = proxyRes.statusMessage;
-
-  for (const [key, value] of Object.entries(proxyRes.headers)) {
+  // Copy upstream headers, but strip CORS-related ones
+  const headers = proxyRes.headers;
+  for (const [key, value] of Object.entries(headers)) {
     if (!/^access-control-/i.test(key)) {
       res.setHeader(key, value);
     }
   }
 
+  // Inject permissive CORS headers
+  setCORSHeaders(res);
+
+  res.statusCode = proxyRes.statusCode;
+  res.statusMessage = proxyRes.statusMessage;
+
   proxyRes.pipe(res);
 });
 
-const PORT = process.env.PORT || 3420;
 app.listen(PORT, () => {
-  console.log(`Universal CORS proxy running on http://localhost:${PORT}`);
+  console.log(`CORS proxy running on http://localhost:${PORT}`);
 });
