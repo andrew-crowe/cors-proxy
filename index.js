@@ -43,6 +43,10 @@ app.use('/proxy', (req, res) => {
   console.log(req.headers.authorization);
 });
 
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
 proxy.on('proxyRes', (proxyRes, req, res) => {
   res.statusCode = proxyRes.statusCode;
   res.statusMessage = proxyRes.statusMessage;
