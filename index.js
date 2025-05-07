@@ -1,9 +1,7 @@
 import express from 'express';
 import httpproxy from 'http-proxy';
-import { URL } from 'url';
 
 const createProxyServer = httpproxy.createProxyServer;
-import { parse as parseQuery } from 'querystring';
 
 const app = express();
 const proxy = createProxyServer({
@@ -57,4 +55,4 @@ proxy.on('proxyRes', (proxyRes, req, res) => {
   proxyRes.pipe(res);
 });
 
-app.listen(3420, () => console.log('CORS proxy running on port 3420'));
+app.listen(3000, () => console.log('CORS proxy running on port 3000'));
