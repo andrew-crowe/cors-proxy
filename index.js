@@ -32,10 +32,15 @@ app.use('/proxy', (req, res) => {
 
   req.url = targetUrl;
 
+
   proxy.web(req, res, {
     target: targetUrl,
     headers: { ...req.headers, host: undefined },
   });
+
+  console.log(req.headers);
+  console.log(req.rawHeaders);
+  console.log(req.headers.authorization);
 });
 
 proxy.on('proxyRes', (proxyRes, req, res) => {
