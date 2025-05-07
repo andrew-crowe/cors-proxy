@@ -55,4 +55,4 @@ proxy.on('proxyRes', (proxyRes, req, res) => {
   proxyRes.pipe(res);
 });
 
-app.listen(3000, () => console.log('CORS proxy running on port 3000'));
+app.listen(3420, () => console.log('CORS proxy running on port 3420'));
